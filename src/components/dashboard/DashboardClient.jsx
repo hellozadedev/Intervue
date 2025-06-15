@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -8,8 +9,10 @@ import CandidateDisplay from './CandidateDisplay';
 import { useToast } from '@/hooks/use-toast';
 import { Search, Loader2, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Label } from '@/components/ui/label';
 
-export default function DashboardClient() {
+
+export default function DashboardClient({ user }) {
   const [searchEmail, setSearchEmail] = useState('');
   const [candidate, setCandidate] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -61,13 +64,15 @@ export default function DashboardClient() {
   
   const handleLogout = async () => {
     try {
-      // Call an API route to clear the cookie if it's HttpOnly
-      // For now, just remove from client and redirect
-      // This assumes the cookie can be cleared by setting its expiry to the past.
-      // A dedicated /api/auth/logout route is more robust for HttpOnly cookies.
-      document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      toast({ title: "Logged Out", description: "You have been successfully logged out." });
-      router.push('/login');
+      const res = await fetch('/api/auth/logout', { method: 'POST' });
+      if (res.ok) {
+        toast({ title: "Logged Out", description: "You have been successfully logged out." });
+        router.push('/login');
+        router.refresh(); // To ensure server-side state is updated
+      } else {
+        const data = await res.json();
+        toast({ variant: "destructive", title: "Logout Failed", description: data.message || "Could not log out." });
+      }
     } catch (error) {
       toast({ variant: "destructive", title: "Logout Failed", description: "Could not log out." });
     }
@@ -77,7 +82,10 @@ export default function DashboardClient() {
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <header className="mb-8 flex items-center justify-between">
-        <h1 className="text-4xl font-bold font-headline text-primary">Intervue Dashboard</h1>
+        <div>
+          <h1 className="text-4xl font-bold font-headline text-primary">Intervue Dashboard</h1>
+          {user && <p className="text-sm text-muted-foreground">Welcome, {user.email}</p>}
+        </div>
         <Button variant="outline" onClick={handleLogout} className="text-accent-foreground border-accent hover:bg-accent/10">
             <LogOut className="mr-2 h-4 w-4" /> Logout
         </Button>

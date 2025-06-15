@@ -1,12 +1,11 @@
 import dbConnect from '@/lib/mongodb';
 import Candidate from '@/models/Candidate';
-import { verifyToken } from '@/lib/auth';
+import { getAppSession } from '@/lib/auth';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 export async function PUT(request, { params }) {
-  const token = cookies().get('token')?.value;
-  if (!token || !verifyToken(token)) {
+  const session = await getAppSession();
+  if (!session.user || !session.user.userId) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 

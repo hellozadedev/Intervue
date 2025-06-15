@@ -1,29 +1,20 @@
 import DashboardClient from '@/components/dashboard/DashboardClient';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { verifyToken } from '@/lib/auth';
+import { getAppSession } from '@/lib/auth';
+import { Label } from '@/components/ui/label'; // Ensure Label is imported if used within DashboardClient or its children for SR
 
-// This page is a server component. It can check cookies directly.
 export default async function DashboardPage() {
-  const cookieStore = cookies();
-  const token = cookieStore.get('token')?.value;
+  const session = await getAppSession();
 
-  if (!token) {
-    redirect('/login?reason=no_token');
+  if (!session || !session.user || !session.user.userId) {
+    // If no active session or user data in session, redirect to login
+    redirect('/login?reason=session_expired_or_invalid');
   }
 
-  const userPayload = verifyToken(token);
-  if (!userPayload) {
-    // Invalid or expired token
-    // Clear the cookie (optional, can be done on client or by setting expiry)
-    // For simplicity, just redirect
-    redirect('/login?reason=invalid_token');
-  }
-
-  // If token is valid, render the client component for interactivity
+  // If session is valid, render the client component
   return (
     <main className="min-h-screen bg-gradient-to-br from-background to-primary/10">
-      <DashboardClient />
+      <DashboardClient user={session.user} />
     </main>
   );
 }

@@ -1,51 +1,53 @@
 
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth'; // Assuming verifyToken can handle being called on server
+import { getSessionFromRequest, sessionOptions } from '@/lib/auth'; // Using getSessionFromRequest for middleware
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
-  const tokenCookie = request.cookies.get('token');
-  const token = tokenCookie?.value;
+  
+  // For iron-session, get the session using request.cookies
+  // Note: getIronSession (used by getSessionFromRequest) can work with request.cookies directly.
+  const session = await getSessionFromRequest(request.cookies); 
+  const isAuthenticated = !!(session && session.user && session.user.userId);
 
   const isAuthPage = pathname === '/login' || pathname === '/register';
   const isProtectedRoute = pathname.startsWith('/dashboard');
-  
-  let userPayload = null;
-  if (token) {
-    try {
-      // In middleware, context for verifyToken might differ if it expects browser APIs.
-      // Ensure verifyToken is purely based on jwt library and JWT_SECRET.
-      userPayload = verifyToken(token);
-    } catch (err) {
-      // Invalid token, treat as unauthenticated
-      console.error("Token verification failed in middleware:", err.message);
-    }
-  }
+  const isApiAuthRoute = pathname.startsWith('/api/auth/login') || pathname.startsWith('/api/auth/register');
 
   if (isAuthPage) {
-    if (userPayload) {
-      // If user is authenticated and tries to access login or register page, redirect to dashboard
+    if (isAuthenticated) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
-    // Allow access to login or register page if not authenticated
     return NextResponse.next();
   }
 
   if (isProtectedRoute) {
-    if (!userPayload) {
-      // If user is not authenticated and tries to access a protected route, redirect to login
+    if (!isAuthenticated) {
       const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('redirectedFrom', pathname); // Optional: pass redirect info
+      loginUrl.searchParams.set('redirectedFrom', pathname);
       return NextResponse.redirect(loginUrl);
     }
-    // Allow access to protected route if authenticated
+    return NextResponse.next();
+  }
+  
+  // Allow access to public API routes like login/register without further checks here
+  if (isApiAuthRoute) {
     return NextResponse.next();
   }
 
-  // Allow access to other public pages
+  // For other API routes, you might want to add protection if they aren't covered by page-level checks
+  // or if they are meant to be protected. For now, assuming /api/candidates/* are handled by session checks within the route handlers.
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login', '/register'],
+  // Apply middleware to authentication pages, dashboard, and relevant API routes
+  // Exclude public assets and _next internal routes
+  matcher: [
+    '/dashboard/:path*', 
+    '/login', 
+    '/register',
+    // '/api/((?!auth/login|auth/register|auth/logout).*)', // Example: Protect API routes other than auth
+  ],
 };

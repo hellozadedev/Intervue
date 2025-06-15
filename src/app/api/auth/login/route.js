@@ -1,6 +1,6 @@
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
-import { generateToken } from '@/lib/auth';
+import { getAppSession } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -25,20 +25,14 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
     }
 
-    const tokenPayload = { userId: user._id, email: user.email };
-    const token = generateToken(tokenPayload);
+    const session = await getAppSession();
+    session.user = { 
+      userId: user._id.toString(), 
+      email: user.email 
+    };
+    await session.save();
 
-    const response = NextResponse.json({ success: true, message: 'Logged in successfully.' });
-    
-    response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV !== 'development',
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 24, // 1 day
-      path: '/',
-    });
-
-    return response;
+    return NextResponse.json({ success: true, message: 'Logged in successfully.' });
 
   } catch (error) {
     console.error('Login error:', error);

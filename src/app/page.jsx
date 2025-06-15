@@ -1,24 +1,19 @@
-'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { redirect } from 'next/navigation';
+import { getAppSession } from '@/lib/auth';
 import { Loader2 } from 'lucide-react';
 
-export default function HomePage() {
-  const router = useRouter();
+export default async function HomePage() {
+  const session = await getAppSession();
 
-  useEffect(() => {
-    // Check for auth token (e.g., from localStorage or a cookie check function)
-    // For this example, we'll directly redirect to login.
-    // A more robust solution would check a token and redirect to /dashboard if authenticated.
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='));
-    if (token) {
-      router.replace('/dashboard');
-    } else {
-      router.replace('/login');
-    }
-  }, [router]);
+  if (session && session.user && session.user.userId) {
+    redirect('/dashboard');
+  } else {
+    redirect('/login');
+  }
 
+  // This part will ideally not be reached due to redirects.
+  // Kept for fallback or if redirect logic changes.
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <Loader2 className="h-12 w-12 animate-spin text-primary" />

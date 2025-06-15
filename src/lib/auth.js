@@ -1,36 +1,38 @@
 
-import jwt from 'jsonwebtoken';
+import { getIronSession as getSession } from 'iron-session';
+import { cookies } from 'next/headers';
 
-// Ensure a valid secret is used.
-// If JWT_SECRET is not set, or is an empty string, use a fallback.
-// It's crucial that this fallback is ONLY for development and is replaced by a strong secret in .env for production.
-const DEFAULT_FALLBACK_SECRET = 'a-secure-fallback-secret-for-dev-must-be-changed-for-prod';
-let effectiveSecret = process.env.JWT_SECRET;
+const IRON_SESSION_PASSWORD_FALLBACK = 'this_is_a_secure_dev_password_at_least_32_characters_long';
+let ironSessionPassword = process.env.IRON_SESSION_PASSWORD;
 
-if (!effectiveSecret || typeof effectiveSecret !== 'string' || effectiveSecret.trim() === '') {
-  // In a real app, you'd want a console warning here for developers,
-  // but per instructions, no console logs are added in the final code.
-  // e.g., console.warn('JWT_SECRET is not set or is empty. Using a default (insecure) secret. Set a strong JWT_SECRET in .env.local for production.');
-  effectiveSecret = DEFAULT_FALLBACK_SECRET;
+if (!ironSessionPassword || typeof ironSessionPassword !== 'string' || ironSessionPassword.length < 32) {
+  if (process.env.NODE_ENV !== 'production') {
+    // console.warn('Warning: IRON_SESSION_PASSWORD is not set, is not a string, or is less than 32 characters long. Using a default (insecure) password for development. Set a strong IRON_SESSION_PASSWORD in your .env.local file for production.');
+  }
+  ironSessionPassword = IRON_SESSION_PASSWORD_FALLBACK;
 }
 
-const JWT_SECRET_TO_USE = effectiveSecret;
-const JWT_EXPIRES_IN = '1d'; // Token expiration time
 
-export function generateToken(payload) {
-  return jwt.sign(payload, JWT_SECRET_TO_USE, { expiresIn: JWT_EXPIRES_IN });
+export const sessionOptions = {
+  password: ironSessionPassword,
+  cookieName: 'intervue-app-session', // A unique name for your session cookie
+  cookieOptions: {
+    secure: process.env.NODE_ENV === "production", // Only send cookie over HTTPS in production
+    httpOnly: true, // Prevent client-side JavaScript from accessing the cookie
+    sameSite: 'lax', // CSRF protection
+    maxAge: 60 * 60 * 24, // 1 day in seconds
+    path: '/',
+  },
+};
+
+// Helper function to get the current session in Route Handlers and Server Components
+export async function getAppSession() {
+  const session = await getSession(cookies(), sessionOptions);
+  return session;
 }
 
-export function verifyToken(token) {
-  // If token is null, undefined, or an empty string, jwt.verify will throw.
-  // The try-catch will handle this and return null.
-  if (!token) { 
-    return null;
-  }
-  try {
-    return jwt.verify(token, JWT_SECRET_TO_USE);
-  } catch (error) {
-    // Errors like 'invalid signature', 'jwt expired', 'jwt malformed', 'jwt must be provided' will be caught.
-    return null;
-  }
+// Helper function for middleware usage where `cookies()` from `next/headers` is not directly available
+// Instead, middleware receives `request.cookies`
+export async function getSessionFromRequest(requestCookies) {
+    return await getSession(requestCookies, sessionOptions);
 }
