@@ -1,51 +1,42 @@
 "use client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import NotesSection from "./NotesSection";
-import StarRatingInput from "./StarRatingInput";
-import { Mail, Info } from "lucide-react";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+// Define which fields are editable and their properties
 const editableFieldsConfig = [
-	{ name: "salaryExpectation", label: "Salary Expectation", type: "text" },
-	{ name: "yearsExperience", label: "Years of Experience", type: "text" },
-	{ name: "figmaToHtml", label: "Figma To HTML", type: "text" },
-	{ name: "php_knowladge", label: "PHP Knowladge", type: "text" },
-	{ name: "automation", label: "Automation (N8N)", type: "text" },
-	{ name: "ai_ml", label: "AI/ML", type: "text" },
-	{ name: "cloud", label: "Cloud", type: "text" },
+	{ name: "name", label: "Full Name", type: "text", required: true },
+	{ name: "position", label: "Position Applied For", type: "text" },
+	{ name: "status", label: "Status", type: "text" },
+	{ name: "candidateID", label: "Candidate ID (Numeric)", type: "number" },
+	{ name: "submissionDate", label: "Submission Date", type: "date" },
+	{ name: "salaryExpectation", label: "Salary Expectation", type: "number" },
+	{ name: "yearsExperience", label: "Years of Experience", type: "number" },
+	{ name: "linkedInProfile", label: "LinkedIn Profile URL", type: "url" },
+	{ name: "cvLink", label: "CV Link/File Name", type: "text" },
+	{ name: "codingTestProjectLink", label: "Coding Test Project URL", type: "url" },
+	{ name: "githubRepoLink", label: "GitHub Repository URL", type: "url" },
+	{ name: "projectDescription", label: "Project Description", type: "textarea", rows: 3 },
+	{ name: "selfDescription", label: "Self Description", type: "textarea", rows: 3 },
+	{ name: "programmingLanguage", label: "Primary Programming Language", type: "text" },
+	{ name: "recentLearning", label: "Recent Learning", type: "textarea", rows: 2 },
+	{ name: "futureLearningPlans", label: "Future Learning Plans", type: "textarea", rows: 2 },
+	{ name: "dbKnowledge", label: "Database Knowledge", type: "textarea", rows: 2 },
+	{ name: "quickReactionScenario", label: "Quick Reaction Scenario Response", type: "textarea", rows: 2 },
+	{ name: "frontendPreference", label: "Frontend Preference", type: "textarea", rows: 2 },
+	{ name: "projectSuggestion", label: "Project Suggestion", type: "textarea", rows: 2 },
 ];
-export default function CandidateDisplay({ candidate, onUpdateCandidate }) {
-	if (!candidate) {
-		return (
-			<Card className="mt-6 shadow-lg">
-				<CardHeader>
-					<CardTitle className="flex items-center font-headline">
-						<Info className="mr-2 h-6 w-6 text-primary" />
-						No Candidate Selected
-					</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<p className="text-muted-foreground">Search for a candidate by email to view their details.</p>
-				</CardContent>
-			</Card>
-		);
-	}
 
-	const handleNoteAdded = (updatedCandidate) => {
-		onUpdateCandidate(updatedCandidate);
-	};
-
-	const handleRatingSaved = (newRating) => {
-		onUpdateCandidate({ ...candidate, rating: newRating });
-	};
-	const [formData, setFormData] = useState(candidate);
+export default function CandidateEditForm({ candidate, onSave, onCancel }) {
+	const [formData, setFormData] = useState({});
 	const [isLoading, setIsLoading] = useState(false);
 	const { toast } = useToast();
 
@@ -81,7 +72,7 @@ export default function CandidateDisplay({ candidate, onUpdateCandidate }) {
 
 		// Prepare data, converting empty strings to null for optional fields if necessary,
 		// or handle type conversions (e.g., string to number for salary/experience)
-		const payload = { ...formData, ...candidate };
+		const payload = { ...formData };
 		editableFieldsConfig.forEach((field) => {
 			if (field.type === "number" && payload[field.name] === "") {
 				payload[field.name] = null; // Or handle as per backend requirement for empty numbers
@@ -109,8 +100,9 @@ export default function CandidateDisplay({ candidate, onUpdateCandidate }) {
 			if (res.ok) {
 				toast({
 					title: "Update Successful",
-					description: `${candidate.Name}'s details have been updated.`,
+					description: `${candidate.name}'s details have been updated.`,
 				});
+				onSave(data); // Pass updated candidate data back
 			} else {
 				toast({
 					variant: "destructive",
@@ -148,33 +140,15 @@ export default function CandidateDisplay({ candidate, onUpdateCandidate }) {
 	return (
 		<Card className="mt-6 shadow-xl w-full">
 			<CardHeader className="bg-primary/10 rounded-t-lg p-6">
-				<CardTitle className="text-3xl font-headline text-primary flex items-center">
-					{candidate.Name} [{candidate.ID}]
-				</CardTitle>
-				<CardDescription className="text-base text-primary/80 flex flex-col sm:flex-row sm:items-center sm:space-x-4">
-					<span className="flex items-center">
-						<Mail className="mr-2 h-4 w-4" /> {candidate.Email}
-					</span>
-				</CardDescription>
+				<CardTitle className="text-3xl font-headline text-primary flex items-center">Update Notes</CardTitle>
 			</CardHeader>
 			<CardContent className="p-6 grid gap-8 md:grid-cols-2">
-				<div className="space-y-6">
-					<NotesSection title="Pre-Interview Notes" notes={candidate.preInterviewNotes} candidateId={candidate._id} noteType="preInterview" onNoteAdded={handleNoteAdded} />
-				</div>
-				<div className="space-y-6">
-					<NotesSection title="Post-Interview Notes" notes={candidate.postInterviewNotes} candidateId={candidate._id} noteType="postInterview" onNoteAdded={handleNoteAdded} />
-				</div>
-				<div className="md:col-span-2 space-y-2">
-					<h3 className="text-xl font-semibold font-headline">Candidate Rating</h3>
-					<StarRatingInput currentRating={candidate.rating} candidateId={candidate._id} onRatingSaved={handleRatingSaved} />
-					{candidate.rating !== null && candidate.rating !== undefined && <p className="text-sm text-muted-foreground">Current rating: {candidate.rating} / 10</p>}
-				</div>
-				<div className="md:col-span-2 space-y-2">
-					<form className="space-y-4" onSubmit={handleSubmit}>
+				<form className="space-y-4">
+					<ScrollArea className="h-[65vh] pr-3">
 						{/* Adjust height as needed */}
-						<div className="p-1 grid grid-cols-3 gap-4">
+						<div className="space-y-4 p-1">
 							{editableFieldsConfig.map((field) => (
-								<div key={field.name} className="space-y-1 mt-0">
+								<div key={field.name} className="space-y-1">
 									<Label htmlFor={field.name} className="text-sm font-medium">
 										{field.label} {field.required && <span className="text-destructive">*</span>}
 									</Label>
@@ -182,15 +156,17 @@ export default function CandidateDisplay({ candidate, onUpdateCandidate }) {
 								</div>
 							))}
 						</div>
-
-						<div className="flex justify-end space-x-2 pt-4 border-t">
-							<Button type="submit" disabled={isLoading} className="bg-primary hover:bg-primary/90">
-								{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-								Save Changes
-							</Button>
-						</div>
-					</form>
-				</div>
+					</ScrollArea>
+					<div className="flex justify-end space-x-2 pt-4 border-t">
+						<Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
+							Cancel
+						</Button>
+						<Button type="submit" disabled={isLoading} className="bg-primary hover:bg-primary/90">
+							{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+							Save Changes
+						</Button>
+					</div>
+				</form>
 			</CardContent>
 		</Card>
 	);
