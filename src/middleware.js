@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth'; // Assuming verifyToken can handle being called on server
 
@@ -6,7 +7,7 @@ export async function middleware(request) {
   const tokenCookie = request.cookies.get('token');
   const token = tokenCookie?.value;
 
-  const isAuthPage = pathname === '/login';
+  const isAuthPage = pathname === '/login' || pathname === '/register';
   const isProtectedRoute = pathname.startsWith('/dashboard');
   
   let userPayload = null;
@@ -23,10 +24,10 @@ export async function middleware(request) {
 
   if (isAuthPage) {
     if (userPayload) {
-      // If user is authenticated and tries to access login page, redirect to dashboard
+      // If user is authenticated and tries to access login or register page, redirect to dashboard
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
-    // Allow access to login page if not authenticated
+    // Allow access to login or register page if not authenticated
     return NextResponse.next();
   }
 
@@ -46,5 +47,5 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login'],
+  matcher: ['/dashboard/:path*', '/login', '/register'],
 };
