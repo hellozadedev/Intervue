@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import CandidateDisplay from "./CandidateDisplay";
 import CandidateDataDisplay from "./CandidateDataDisplay";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Loader2, LogOut } from "lucide-react";
+import { Search, Loader2, LogOut, Users, Star, ExternalLink, X, ChevronUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
-
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 export default function DashboardClient({ user }) {
 	const [searchEmail, setSearchEmail] = useState("");
 	const [candidate, setCandidate] = useState(null);
@@ -18,9 +18,37 @@ export default function DashboardClient({ user }) {
 	const [notFound, setNotFound] = useState(false);
 	const { toast } = useToast();
 	const router = useRouter();
-
+	const [allCandidates, setAllCandidates] = useState([]);
+	const [isCandidateListLoading, setIsCandidateListLoading] = useState(true);
+	useEffect(() => {
+		const fetchCandidates = async () => {
+			setIsCandidateListLoading(true);
+			try {
+				const res = await fetch("/api/candidates");
+				if (res.ok) {
+					const data = await res.json();
+					setAllCandidates(data);
+				} else {
+					toast({
+						variant: "destructive",
+						title: "Failed to Load Candidates",
+						description: "Could not fetch the list of candidates.",
+					});
+				}
+			} catch (error) {
+				toast({
+					variant: "destructive",
+					title: "Error",
+					description: "Could not connect to the server to load candidates.",
+				});
+			} finally {
+				setIsCandidateListLoading(false);
+			}
+		};
+		fetchCandidates();
+	}, [toast]);
 	const handleSearch = async (e) => {
-		e.preventDefault();
+		e && e.preventDefault();
 		if (!searchEmail.trim()) return;
 		setIsLoading(true);
 		setCandidate(null);
@@ -59,6 +87,7 @@ export default function DashboardClient({ user }) {
 
 	const handleUpdateCandidate = (updatedCandidate) => {
 		setCandidate(updatedCandidate);
+		setAllCandidates((prev) => prev.map((c) => (c._id === updatedCandidate._id ? updatedCandidate : c)));
 	};
 
 	const handleLogout = async () => {
@@ -77,6 +106,14 @@ export default function DashboardClient({ user }) {
 		}
 	};
 
+	const renderRatingStars = (rating) => {
+		if (rating === null || rating === undefined) return <span className="text-muted-foreground text-xs">Not Rated</span>;
+		const stars = [];
+		for (let i = 1; i <= 10; i++) {
+			stars.push(<Star key={i} className={`h-4 w-4 ${i <= rating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground"}`} />);
+		}
+		return <div className="flex items-center">{stars}</div>;
+	};
 	return (
 		<div className="container mx-auto p-4 sm:p-6 lg:p-8">
 			<header className="mb-8 flex items-center justify-between">
@@ -84,10 +121,42 @@ export default function DashboardClient({ user }) {
 					<h1 className="text-4xl font-bold font-headline text-primary">Intervue Dashboard</h1>
 					{user && <p className="text-sm text-muted-foreground">Welcome, {user.email}</p>}
 				</div>
-				<Button variant="outline" onClick={handleLogout} className="text-accent-foreground border-accent hover:bg-accent/10">
+				<Button variant="outline" onClick={handleLogout} className=" bg-black text-white">
 					<LogOut className="mr-2 h-4 w-4" /> Logout
 				</Button>
 			</header>
+
+			<div>
+				<Button
+					type="button"
+					className="bg-accent hover:bg-accent/90 text-accent-foreground fixed bottom-16 right-8"
+					onClick={() => {
+						window.scrollTo({
+							top: 0,
+							behavior: "smooth",
+						});
+					}}
+				>
+					<ChevronUp className="h-4 w-4" />
+				</Button>
+				<Button
+					type="button"
+					disabled={isLoading}
+					className="bg-black hover:bg-black/90 text-accent-foreground fixed bottom-4 right-4"
+					onClick={() => {
+						setSearchEmail("");
+						setCandidate(null);
+						setNotFound(false);
+						window.scrollTo({
+							top: 200,
+							behavior: "smooth",
+						});
+					}}
+				>
+					{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />}
+					Clear
+				</Button>
+			</div>
 
 			<Card className="mb-8 shadow-lg">
 				<CardHeader>
@@ -121,6 +190,66 @@ export default function DashboardClient({ user }) {
 			{candidate && <CandidateDisplay candidate={candidate} onUpdateCandidate={handleUpdateCandidate} />}
 
 			{candidate && <CandidateDataDisplay candidate={candidate} />}
+
+			<Card className="mt-12 shadow-xl">
+				<CardHeader>
+					<CardTitle className="font-headline text-2xl flex items-center">
+						<Users className="mr-2 h-6 w-6" />
+						All Candidates
+					</CardTitle>
+					<CardDescription>List of all candidates, sorted by rating (highest first).</CardDescription>
+				</CardHeader>
+				<CardContent>
+					{isCandidateListLoading ? (
+						<div className="flex justify-center items-center py-10">
+							<Loader2 className="h-12 w-12 animate-spin text-primary" />
+						</div>
+					) : allCandidates.length > 0 ? (
+						<div className="overflow-x-auto">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead>Name</TableHead>
+										<TableHead>Email</TableHead>
+										<TableHead>Salary Expectation</TableHead>
+										<TableHead className="text-center">Rating</TableHead>
+										<TableHead className="text-right">Actions</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{allCandidates.map((c) => (
+										<TableRow key={c._id}>
+											<TableCell className="font-medium">{c.Name}</TableCell>
+											<TableCell>{c.Email}</TableCell>
+											<TableCell>{c.salaryExpectation}</TableCell>
+											<TableCell className="text-center">{renderRatingStars(c.rating)}</TableCell>
+											<TableCell className="text-right">
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => {
+														setSearchEmail(c.Email);
+
+														setCandidate(c);
+														window.scrollTo({
+															top: 200,
+															behavior: "smooth",
+														});
+													}}
+												>
+													View Profile <ExternalLink className="ml-2 h-3 w-3" />
+												</Button>
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</div>
+					) : (
+						<p className="text-muted-foreground text-center py-10">No candidates found.</p>
+					)}
+				</CardContent>
+			</Card>
 		</div>
 	);
 }
