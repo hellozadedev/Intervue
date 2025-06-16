@@ -81,7 +81,7 @@ export default function CandidateDisplay({ candidate, onUpdateCandidate }) {
 
 		// Prepare data, converting empty strings to null for optional fields if necessary,
 		// or handle type conversions (e.g., string to number for salary/experience)
-		const payload = { ...formData, ...candidate };
+		const payload = { ...candidate, ...formData };
 		editableFieldsConfig.forEach((field) => {
 			if (field.type === "number" && payload[field.name] === "") {
 				payload[field.name] = null; // Or handle as per backend requirement for empty numbers
